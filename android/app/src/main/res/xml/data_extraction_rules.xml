@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ 的备份/迁移规则。
+  凭据（DataStore 的 signhub_settings、wb_accounts、signhub_notify_log 等）
+  一律排除：既不上云备份，也不参与设备间直传。
+  历史签到记录同样排除 —— 那里面有账号 id，没必要跟着跑。
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="file" path="datastore" />
+        <exclude domain="root" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="file" path="datastore" />
+        <exclude domain="root" path="." />
+    </device-transfer>
+</data-extraction-rules>

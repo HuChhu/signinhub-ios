@@ -1,0 +1,31 @@
+<resources>
+    <style name="Theme.SigninHub" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#0F1115</item>
+        <item name="android:navigationBarColor">#0F1115</item>
+        <item name="android:windowBackground">#0F1115</item>
+        <!-- 系统 AlertDialog 的兜底样式：即使某处还在用 AlertDialog.Builder，
+             也不再出现「直角深灰板」。真正的圆角弹窗走 SignDialog（自绘 Dialog），
+             因为 AlertDialog 的圆角画死在 framework 的 windowBackground 九宫格里，改不动。 -->
+        <item name="android:alertDialogTheme">@style/Theme.SigninHub.Dialog</item>
+    </style>
+
+    <!--
+      自绘弹窗（SignDialog）的宿主主题：
+        · 窗口背景必须透明 —— 圆角由内容卡片自己画，窗口画了底色就会在四个角露出直角方块
+        · 无标题、无边框、无系统 padding
+        · 状态栏/导航栏保持深色，避免弹窗弹出时状态栏闪白
+    -->
+    <style name="Theme.SigninHub.Dialog" parent="android:Theme.Material.Dialog.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.62</item>
+        <item name="android:windowMinWidthMajor">84%</item>
+        <item name="android:windowMinWidthMinor">92%</item>
+        <item name="android:colorAccent">#6C8CFF</item>
+        <item name="android:textColorPrimary">#EEF1F8</item>
+        <item name="android:textColorSecondary">#A7B0C6</item>
+    </style>
+</resources>

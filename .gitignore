@@ -1,0 +1,30 @@
+# ===== 运行数据与密钥（绝不上传） =====
+backend/data/
+backend/*.log
+backend/server.out.log
+backend/server.err.log
+workbuddy_state.json
+*.db
+*.db-journal
+*.log
+
+# ===== 构建产物 =====
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.iml
+__pycache__/
+*.pyc
+.DS_Store
+
+# ===== 打包产物 =====
+*.apk
+!release/*.apk
+*.zip
+# ---- 签名与发布身份（绝对不能入库） ----
+android/keystore/
+android/keystore.properties
+*.jks
+*.keystore

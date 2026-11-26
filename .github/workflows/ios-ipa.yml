@@ -1,0 +1,99 @@
+name: iOS IPA (unsigned)
+
+# 出未签名 IPA，交给调用方用自己的证书签名（AltStore / Sideloadly / 企业证书）。
+# 仓库不持有任何 iOS 签名资料 —— macOS runner 上没有开发证书，
+# CODE_SIGNING_ALLOWED=NO 是唯一能跑通的路径，也正是自签安装需要的输入。
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'backend/**'
+      - 'scripts/build_ios_ipa.sh'
+      - '.github/workflows/ios-ipa.yml'
+
+permissions:
+  contents: read
+
+# 每次触发用独立的 group（带 run_id），否则 dispatch + push 同时进来时
+# 后到的会把前一个 cancel 掉 —— 看起来像「构建失败」，实际根本没跑。
+concurrency:
+  group: ios-ipa-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  ipa:
+    # macos-14 镜像已退役：实测 runs-on: macos-14 的 job 拿不到 runner，
+    # 状态是 completed/cancelled + runner_name 为空 + steps: 0（秒取消）。
+    # macos-15 / macos-latest 实测能正常分配。
+    # macos-15 = Apple Silicon + Xcode 16.x，iOS 18 SDK 齐全。
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          sw_vers
+          xcodebuild -showsdks | grep -i iphoneos || true
+
+      - name: Select newest Xcode
+        run: |
+          ls /Applications | grep -i Xcode || true
+          NEWEST=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$NEWEST" ]; then sudo xcode-select -s "$NEWEST"; fi
+          xcodebuild -version
+
+      - name: 工程自检（越早失败越省时间）
+        run: python3 scripts/check_ios_project.py "$PWD"
+
+      - name: 网页资源一致性（backend/web 与 Android assets 不能分叉）
+        run: bash scripts/sync_web.sh --check
+
+      # 只验编译、不签名不出包。Swift 语法错误在这一步就暴露，
+      # 不用等 archive 跑到一半 —— 上一版就是漏了一个反斜杠把 CI 搞红的。
+      # set -o pipefail 是关键：没有它，xcodebuild ... | tee | tail 的退出码
+      # 取的是 tail（永远 0），编译错误在这一步不会让 job 红，
+      # 会一路走到 archive 去打一个不存在的 IPA。
+      - name: 编译验证（模拟器，快速失败）
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ios
+          xcodebuild -project SigninHub.xcodeproj -scheme SigninHub \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build \
+            2>&1 | tee /tmp/compile.log | tail -40
+
+      - name: Build IPA
+        run: bash scripts/build_ios_ipa.sh
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: SigninHub-ios-unsigned-${{ github.sha }}
+          retention-days: 14
+          if-no-files-found: error
+          compression-level: 0
+          path: build/SigninHub-unsigned.ipa
+
+      - name: Retain diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-diagnostics-${{ github.sha }}
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            /tmp/compile.log
+            /tmp/xcodebuild.log

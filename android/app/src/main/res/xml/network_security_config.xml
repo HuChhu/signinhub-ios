@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  明文（HTTP）流量策略。
+
+  为什么不能简单把 usesCleartextTraffic 设成 false：
+  本 App 支持「连电脑端后端」模式，地址由用户在设置里填（形如
+  http://192.168.1.20:8787）。局域网后端就是裸 HTTP，禁掉明文会让这个功能直接不可用；
+  而 Android 的 network-security-config 只支持逐个域名/IP，不支持 192.168.0.0/16 这类
+  网段通配，所以没法「只允许内网明文」。
+
+  所以这里采取「默认允许 + 对已知上游域名强制 HTTPS」：
+  - base-config 保留 cleartextTrafficPermitted="true"，局域网后端照旧能用；
+  - 四家上游（WorkBuddy / Trae / Qoder / MiniMax / 华为码道）逐个声明
+    cleartextTrafficPermitted="false"，即使 config.json 里的地址被改成
+    http://api.trae.cn 之类的降级地址，系统层也会直接拒绝，避免凭据在明文通道里裸奔。
+
+  L8（BUGS-v2.61）：原来漏了华为码道两个域名（devcloud.cn-north-4.huaweicloud.com、
+  codearts.huaweicloud.com），它们的 cookie（devclouddevuibjtcftk CSRF 令牌 +
+  J_SESSION_ID 会话）可以走明文。已补 huaweicloud.com 整域。
+  另外后端侧还有一层：provider.py 的自定义接口 URL 必须过 netguard.check_url，
+  公网地址一律强制 https（见 backend/signbot/netguard.py）。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">codebuddy.cn</domain>
+        <domain includeSubdomains="true">workbuddy.cn</domain>
+        <domain includeSubdomains="true">workbuddy.ai</domain>
+        <domain includeSubdomains="true">copilot.tencent.com</domain>
+        <domain includeSubdomains="true">trae.cn</domain>
+        <domain includeSubdomains="true">trae.ai</domain>
+        <domain includeSubdomains="true">qoder.com.cn</domain>
+        <domain includeSubdomains="true">qoder.sh</domain>
+        <domain includeSubdomains="true">minimax.cn</domain>
+        <domain includeSubdomains="true">minimaxi.com</domain>
+        <!-- L8：华为码道（devcloud 签到接口 + codearts 页面） -->
+        <domain includeSubdomains="true">huaweicloud.com</domain>
+        <!-- H9：下面四家同样持有 Cookie 型凭据（智谱 zpCookie / 豆包 dbCookie /
+             千帆 bceCookie / 腾讯 copilot cookie），此前漏在 base-config 里，
+             系统层不拦它们的明文降级。补进强 HTTPS 名单。 -->
+        <domain includeSubdomains="true">chatglm.cn</domain>
+        <domain includeSubdomains="true">doubao.com</domain>
+        <domain includeSubdomains="true">bce.baidu.com</domain>
+        <domain includeSubdomains="true">copilot.tencent.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>
